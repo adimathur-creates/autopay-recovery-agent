@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="20">
+<title>Autopay Recovery</title>
+<style>
+  :root { --bg:#f7f8fa; --card:#fff; --ink:#0f172a; --muted:#64748b; --line:#e5e7eb;
+          --blue:#2563eb; --green:#16a34a; --amber:#d97706; --red:#dc2626; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family: -apple-system, "Segoe UI", Inter, sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:24px 32px 8px; }
+  h1 { margin:0; font-size:22px; }
+  .sub { color:var(--muted); font-size:13px; margin-top:4px; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; padding:16px 32px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
+  .kpi .label { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  .kpi .val { font-size:26px; font-weight:650; margin-top:6px; font-variant-numeric:tabular-nums; }
+  section { padding:8px 32px 24px; }
+  h2 { font-size:15px; margin:12px 0 8px; }
+  .tablewrap { overflow-x:auto; background:var(--card); border:1px solid var(--line); border-radius:10px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:9px 12px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { color:var(--muted); font-weight:600; font-size:12px; }
+  tr:last-child td { border-bottom:none; }
+  .num { text-align:right; font-variant-numeric:tabular-nums; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; background:#eef2ff; color:var(--blue); }
+  .paid_via_link { background:#dcfce7; color:var(--green); }
+  .promise_to_pay, .link_sent, .auto_retry_scheduled, .callback_requested { background:#fef3c7; color:var(--amber); }
+  .disputed, .cancel_requested, .do_not_call { background:#fee2e2; color:var(--red); }
+  .not_called, .skipped_do_not_call, .wrong_person, .no_resolution { background:#f1f5f9; color:var(--muted); }
+  a { color:var(--blue); }
+  .note { white-space:normal; max-width:320px; color:var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Autopay Recovery &mdash; Voice Agent</h1>
+  <div class="sub">Razorpay test mode &middot; payment status checked live with Razorpay &middot; updated {{ m.generated_at }} (auto-refreshes)</div>
+</header>
+
+<div class="kpis">
+  <div class="kpi"><div class="label">Recovered</div><div class="val">&#8377;{{ "{:,}".format(m.recovered) }}</div></div>
+  <div class="kpi"><div class="label">Recovery rate</div><div class="val">{{ m.recovery_rate }}%</div></div>
+  <div class="kpi"><div class="label">Promised to pay</div><div class="val">&#8377;{{ "{:,}".format(m.promised) }}</div></div>
+  <div class="kpi"><div class="label">Total due (callable)</div><div class="val">&#8377;{{ "{:,}".format(m.due) }}</div></div>
+  <div class="kpi"><div class="label">Customers reached</div><div class="val">{{ m.reached }} / {{ m.total }}</div></div>
+  <div class="kpi"><div class="label">Scenarios passed</div><div class="val">{{ m.scenarios_passed }} / {{ m.scenarios_tested }}</div></div>
+  <div class="kpi"><div class="label">Voice cost</div><div class="val">${{ m.total_cost_usd }}</div></div>
+</div>
+
+<section>
+  <h2>Customers</h2>
+  <div class="tablewrap"><table>
+    <tr><th>ID</th><th>Name</th><th>Merchant</th><th>Method</th><th>Failure reason</th><th class="num">Due (&#8377;)</th><th>Outcome</th><th>Expected</th><th>Check</th><th>Promise date</th><th>Notes</th></tr>
+    {% for r in m.rows %}
+    <tr>
+      <td>{{ r.customer_id }}</td><td>{{ r.name }}</td><td>{{ r.merchant_name }}</td><td>{{ r.mandate_type }}</td>
+      <td>{{ r.failure_reason.replace('_',' ') }}</td><td class="num">{{ "{:,}".format(r.amount_inr) }}</td>
+      <td><span class="pill {{ r.outcome }}">{{ r.outcome.replace('_',' ') }}</span>{% if r.source == 'extraction' %} <span class="note">(from transcript)</span>{% endif %}</td>
+      <td class="note">{{ r.expected_outcomes | join(' / ') | replace('_',' ') }}</td>
+      <td>{% if r.check == 'pass' %}<span class="pill paid_via_link">pass</span>{% elif r.check == 'fail' %}<span class="pill disputed">fail</span>{% endif %}</td>
+      <td>{{ r.promise_date or '' }}</td><td class="note">{{ r.notes }}</td>
+    </tr>
+    {% endfor %}
+  </table></div>
+</section>
+
+<section>
+  <h2>Payment links sent</h2>
+  <div class="tablewrap"><table>
+    <tr><th>Customer</th><th class="num">Amount (&#8377;)</th><th>Link</th><th>Razorpay status</th></tr>
+    {% for l in m.links %}
+    <tr><td>{{ l.customer_id }}</td><td class="num">{{ l.amount_inr }}</td>
+        <td><a href="{{ l.short_url }}" target="_blank">{{ l.short_url }}</a></td>
+        <td><span class="pill {{ 'paid_via_link' if l.status=='paid' else 'link_sent' }}">{{ l.status }}</span></td></tr>
+    {% else %}<tr><td colspan="4" class="note">No links yet.</td></tr>{% endfor %}
+  </table></div>
+</section>
+
+<section>
+  <h2>Call log</h2>
+  <div class="tablewrap"><table>
+    <tr><th>Customer</th><th>Ended because</th><th class="num">Seconds</th><th class="num">Cost ($)</th><th>Summary</th><th>Recording</th></tr>
+    {% for c in m.calls %}
+    <tr><td>{{ c.customer_id or '' }}</td><td>{{ c.ended_reason or '' }}</td><td class="num">{{ c.duration_sec or '' }}</td>
+        <td class="num">{{ c.cost_usd or '' }}</td><td class="note">{{ c.summary or '' }}</td>
+        <td>{% if c.recording_url %}<a href="{{ c.recording_url }}" target="_blank">listen</a>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="6" class="note">No calls yet.</td></tr>{% endfor %}
+  </table></div>
+</section>
+</body>
+</html>

@@ -1,0 +1,344 @@
+{
+  "agent_config": {
+    "agent_name": "Asha - Autopay Recovery v3",
+    "agent_welcome_message": "{{first_message}}",
+    "agent_type": "other",
+    "webhook_url": "https://illusive-apple-sedative.ngrok-free.dev/bolna/webhook?token=${VAPI_WEBHOOK_SECRET}",
+    "call_summary_enabled": true,
+    "tasks": [
+      {
+        "task_type": "conversation",
+        "toolchain": {
+          "execution": "parallel",
+          "pipelines": [
+            [
+              "transcriber",
+              "llm",
+              "synthesizer"
+            ]
+          ]
+        },
+        "tools_config": {
+          "llm_agent": {
+            "agent_type": "simple_llm_agent",
+            "agent_flow_type": "streaming",
+            "llm_config": {
+              "provider": "azure",
+              "family": "openai",
+              "model": "azure/gpt-4.1-mini",
+              "max_tokens": 250,
+              "temperature": 0.2,
+              "agent_flow_type": "streaming"
+            }
+          },
+          "synthesizer": {
+            "provider": "elevenlabs",
+            "stream": true,
+            "caching": true,
+            "buffer_size": 200,
+            "audio_format": "wav",
+            "provider_config": {
+              "model": "eleven_turbo_v2_5",
+              "voice": "Tripti - Soothing Customer Care Agent",
+              "voice_id": "1Z7Y8o9cvUeWq8oLKgMY",
+              "speed": 1,
+              "style": 0,
+              "temperature": 0.5,
+              "similarity_boost": 0.6
+            }
+          },
+          "transcriber": {
+            "provider": "deepgram",
+            "model": "nova-3",
+            "language": "en",
+            "stream": true,
+            "encoding": "linear16",
+            "sampling_rate": 16000,
+            "endpointing": 400,
+            "task": "transcribe",
+            "keywords": "Razorpay,UPI,AutoPay,eNACH,mandate,UTR,StreamNest,FitPulse,LedgerLite"
+          },
+          "input": {
+            "provider": "vobiz",
+            "format": "wav"
+          },
+          "output": {
+            "provider": "vobiz",
+            "format": "wav"
+          },
+          "api_tools": {
+            "tools": [
+              {
+                "name": "verify_identity",
+                "key": "custom_task",
+                "description": "Check the caller's year of birth against our records. Call this right after the caller says their year of birth, and before sharing ANY payment details. Pass the year as 4 digits.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "customer_id": {
+                      "type": "string",
+                      "description": "The customer ID. Always {{customer_id}}."
+                    },
+                    "birth_year": {
+                      "type": "string",
+                      "description": "The year of birth the caller said, as 4 digits, e.g. 1991"
+                    }
+                  },
+                  "required": [
+                    "customer_id",
+                    "birth_year"
+                  ]
+                },
+                "pre_call_message": "Thank you, one moment."
+              },
+              {
+                "name": "send_payment_link",
+                "key": "custom_task",
+                "description": "Create a secure Razorpay payment link for the amount due and send it to the customer by SMS. Use only after identity is verified AND the customer agrees to pay now. Call at most once per call.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "customer_id": {
+                      "type": "string",
+                      "description": "The customer ID. Always {{customer_id}}."
+                    }
+                  },
+                  "required": [
+                    "customer_id"
+                  ]
+                },
+                "pre_call_message": "One moment, I'm sending the secure link."
+              },
+              {
+                "name": "schedule_callback",
+                "key": "custom_task",
+                "description": "Schedule a callback at the time the person asked for. Use when the person asks to be called later, or when the wrong person answers.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "customer_id": {
+                      "type": "string",
+                      "description": "The customer ID. Always {{customer_id}}."
+                    },
+                    "callback_time": {
+                      "type": "string",
+                      "description": "When to call back, in the person's words, e.g. 'tomorrow 6 pm'"
+                    }
+                  },
+                  "required": [
+                    "customer_id",
+                    "callback_time"
+                  ]
+                },
+                "pre_call_message": "Sure, let me note that down."
+              },
+              {
+                "name": "escalate_to_human",
+                "key": "custom_task",
+                "description": "Hand the case to a human support specialist. Use when the customer disputes the charge, does not recognise it, mentions fraud, or is very upset.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "customer_id": {
+                      "type": "string",
+                      "description": "The customer ID. Always {{customer_id}}."
+                    },
+                    "reason": {
+                      "type": "string",
+                      "description": "Short reason for escalation"
+                    }
+                  },
+                  "required": [
+                    "customer_id",
+                    "reason"
+                  ]
+                },
+                "pre_call_message": "I'm passing this to our specialist team."
+              },
+              {
+                "name": "log_outcome",
+                "key": "custom_task",
+                "description": "Record the final outcome of the call. Must be called exactly once, just before saying goodbye, on every call.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "customer_id": {
+                      "type": "string",
+                      "description": "The customer ID. Always {{customer_id}}."
+                    },
+                    "outcome": {
+                      "type": "string",
+                      "enum": [
+                        "link_sent",
+                        "promise_to_pay",
+                        "auto_retry_scheduled",
+                        "claims_already_paid",
+                        "disputed",
+                        "cancel_requested",
+                        "callback_requested",
+                        "wrong_person",
+                        "do_not_call",
+                        "no_resolution"
+                      ],
+                      "description": "The single final outcome of the call"
+                    },
+                    "promise_date": {
+                      "type": "string",
+                      "description": "YYYY-MM-DD, only for promise_to_pay; otherwise empty string"
+                    },
+                    "notes": {
+                      "type": "string",
+                      "description": "One short line, e.g. UTR number or cancellation reason; otherwise empty string"
+                    }
+                  },
+                  "required": [
+                    "customer_id",
+                    "outcome",
+                    "promise_date",
+                    "notes"
+                  ]
+                },
+                "pre_call_message": "Alright."
+              }
+            ],
+            "tools_params": {
+              "send_payment_link": {
+                "method": "POST",
+                "url": "https://illusive-apple-sedative.ngrok-free.dev/tools/send_payment_link",
+                "api_token": "Bearer ${VAPI_WEBHOOK_SECRET}",
+                "headers": {
+                  "ngrok-skip-browser-warning": "true"
+                },
+                "param": "{\"customer_id\": \"%(customer_id)s\"}"
+              },
+              "schedule_callback": {
+                "method": "POST",
+                "url": "https://illusive-apple-sedative.ngrok-free.dev/tools/schedule_callback",
+                "api_token": "Bearer ${VAPI_WEBHOOK_SECRET}",
+                "headers": {
+                  "ngrok-skip-browser-warning": "true"
+                },
+                "param": "{\"customer_id\": \"%(customer_id)s\", \"callback_time\": \"%(callback_time)s\"}"
+              },
+              "escalate_to_human": {
+                "method": "POST",
+                "url": "https://illusive-apple-sedative.ngrok-free.dev/tools/escalate_to_human",
+                "api_token": "Bearer ${VAPI_WEBHOOK_SECRET}",
+                "headers": {
+                  "ngrok-skip-browser-warning": "true"
+                },
+                "param": "{\"customer_id\": \"%(customer_id)s\", \"reason\": \"%(reason)s\"}"
+              },
+              "log_outcome": {
+                "method": "POST",
+                "url": "https://illusive-apple-sedative.ngrok-free.dev/tools/log_outcome",
+                "api_token": "Bearer ${VAPI_WEBHOOK_SECRET}",
+                "headers": {
+                  "ngrok-skip-browser-warning": "true"
+                },
+                "param": "{\"customer_id\": \"%(customer_id)s\", \"outcome\": \"%(outcome)s\", \"promise_date\": \"%(promise_date)s\", \"notes\": \"%(notes)s\"}"
+              },
+              "verify_identity": {
+                "method": "POST",
+                "url": "https://illusive-apple-sedative.ngrok-free.dev/tools/verify_identity",
+                "api_token": "Bearer ${VAPI_WEBHOOK_SECRET}",
+                "headers": {
+                  "ngrok-skip-browser-warning": "true"
+                },
+                "param": "{\"customer_id\": \"%(customer_id)s\", \"birth_year\": \"%(birth_year)s\"}"
+              }
+            }
+          },
+          "multilingual_config": {
+            "enabled": true,
+            "active_language": "en",
+            "language_switch_trigger": "caller_requested",
+            "languages": {
+              "en": {
+                "synthesizer": {
+                  "provider": "elevenlabs",
+                  "stream": true,
+                  "caching": true,
+                  "buffer_size": 200,
+                  "audio_format": "wav",
+                  "provider_config": {
+                    "model": "eleven_turbo_v2_5",
+                    "voice": "Tripti - Soothing Customer Care Agent",
+                    "voice_id": "1Z7Y8o9cvUeWq8oLKgMY",
+                    "speed": 1,
+                    "style": 0,
+                    "temperature": 0.5,
+                    "similarity_boost": 0.6
+                  }
+                },
+                "transcriber": {
+                  "provider": "deepgram",
+                  "model": "nova-3",
+                  "language": "en"
+                },
+                "system_prompt": "# Language\nSpeak English (Indian English).\n\n# Role\nYou are Asha, a polite payment-support assistant calling on behalf of {{merchant_name}}.\nYou call customers whose automatic monthly payment (autopay) did not go through.\nYour goal is to help the customer fix the payment in the way that suits them, not to pressure them.\n\n# Customer details for this call (never read these out all at once)\n- Customer ID: {{customer_id}}\n- Name: {{customer_name}}\n- Preferred language: {{language}}\n- Plan: {{plan}}\n- Amount due: {{amount_words_en}}  (always say the amount exactly in these words)\n- Payment method: {{mandate_type}}\n- Why it failed: {{failure_reason}}\n- Failed on: {{failed_on}}\n- Today's date: {{today}}\n\n# How to speak\n- Use simple, everyday words. Short sentences. One question at a time. Never more than 2 sentences per turn.\n- Say the amount exactly as written in \"Amount due\". Never convert, round or change it, and never say \"Rs\" or \"INR\".\n- Say dates naturally and without the year: \"1st October\", never \"2026-10-01\" or \"1 October 2026\".\n- Say the plan name naturally, without brackets: \"StreamNest Premium monthly plan\".\n\n# Step 1: Confirm you are speaking to the right person\n1. Your opening line has ALREADY greeted the person and asked if you are speaking with {{customer_name}}. Do not greet or ask again; respond to their answer.\n2. If yes, say: \"For security, could you please tell me your year of birth?\"\n3. When they answer, convert it to 4 digits (for example \"nineteen ninety one\" = 1991) and call verify_identity with it. You do NOT know the correct year; only the tool does. Never guess, and never tell them what year is on file.\n4. Only if the tool says VERIFIED, continue to Step 2. If it says NOT MATCHED, follow its instruction exactly.\n5. If they are NOT the customer, or the tool says the identity could not be verified:\n   - Do NOT mention the amount, the plan, billing, or that a payment failed.\n   - Say you have a quick account update for {{customer_name}} and ask when is a good time to call back.\n   - Call schedule_callback, then log_outcome with outcome \"wrong_person\", then end politely.\n\n# Step 2: Explain the issue in one or two sentences\n\"Your {{plan}} payment of {{amount_words_en}}, due on {{failed_on}}, did not go through.\" Then explain the reason in plain words:\n- insufficient_funds: \"The bank said there was not enough balance at that moment.\"\n- mandate_revoked: \"The autopay instruction was paused or cancelled in your UPI or bank app.\"\n- card_expired: \"The card saved for autopay has expired.\"\n- bank_technical_decline: \"Your bank's system had a technical problem. This was not your fault.\"\n\n# Step 3: Offer the right fix for the reason\n- insufficient_funds: Offer to send a secure Razorpay payment link right now. If they cannot pay today, ask for a date they can pay, no more than 10 days after {{today}}. Wait for them to clearly confirm the date. Only then log promise_to_pay with that date as YYYY-MM-DD, and tell them autopay will try again on that date.\n- mandate_revoked: Ask if they paused it on purpose. If by mistake, send the payment link and explain it will also let them set up autopay again. If on purpose, follow the cancellation rule below.\n- card_expired: Offer to send the payment link. Tell them the link lets them pay now AND save their new card for future autopay.\n- bank_technical_decline: Reassure them. Do NOT ask them to pay manually. Say the payment will be retried automatically in the next 24 hours. Log outcome \"auto_retry_scheduled\". Only send a link if they ask for one.\n\nWhen you send a link, call send_payment_link, then say: \"I've sent a secure Razorpay link to your phone by SMS. You can pay by UPI, card or net banking.\" Then log outcome \"link_sent\". Never claim the payment is complete; our system confirms payment separately.\n\n# Special situations (these override Step 3)\n- Already paid: Do not argue. Ask for the payment reference or UTR number if they have it. Log outcome \"claims_already_paid\" with the reference in notes written as digits only (for example \"456789\", not \"four five six\"). Say the team will verify within 24 hours.\n- Disputes the charge, does not recognise it, or says fraud: Stop all payment talk immediately. Apologise, call escalate_to_human with the reason, log outcome \"disputed\", and say a support specialist will contact them within 24 hours.\n- Wants to cancel: Offer ONE alternative, once (for example paying later on a date that suits them). If they still want to cancel, accept politely and log outcome \"cancel_requested\". Never push twice.\n- Asks to be called later: Call schedule_callback with their time, then log outcome \"callback_requested\".\n- Asks not to be called again: Apologise, log outcome \"do_not_call\", end the call.\n- Angry or upset: Stay calm, acknowledge their feelings, and offer a callback or a human specialist.\n\n# Hard rules (never break these)\n- Never threaten, shame, or mention legal action, credit scores, or penalties.\n- Never ask for or accept card numbers, CVV, OTP, UPI PIN or passwords. Payment happens only through the Razorpay link.\n- Never invent discounts, waivers, or facts not given above.\n- Keep the call under 3 minutes.\n\n# How to use your tools\n- Use only these tools: verify_identity, send_payment_link, schedule_callback, escalate_to_human, log_outcome.\n- Never call a tool in the same turn as asking the customer a question. Ask, wait for the answer, then act.\n- Call send_payment_link at most once per call. If it says a link was already sent, ask them to check their SMS.\n- For log_outcome, always send outcome, promise_date and notes. Use an empty string \"\" for promise_date and notes when they don't apply.\n- Never read out a tool's name or its result text. Speak naturally.\n\n# Ending EVERY call\n1. Once the issue is handled, do NOT ask \"is there anything else\". Call log_outcome exactly once, with one of: link_sent, promise_to_pay, auto_retry_scheduled, claims_already_paid, disputed, cancel_requested, callback_requested, wrong_person, do_not_call, no_resolution.\n2. Then say exactly one short closing line: \"Thank you for your time, have a good day. Goodbye!\"\n3. After the closing line, if the customer says anything like ok, thanks, bye, theek hai: reply with only \"Bye!\". Never repeat the full closing line.\n"
+              },
+              "hi": {
+                "synthesizer": {
+                  "provider": "elevenlabs",
+                  "stream": true,
+                  "caching": true,
+                  "buffer_size": 200,
+                  "audio_format": "wav",
+                  "provider_config": {
+                    "model": "eleven_turbo_v2_5",
+                    "voice": "Tripti - Soothing Customer Care Agent",
+                    "voice_id": "1Z7Y8o9cvUeWq8oLKgMY",
+                    "speed": 1,
+                    "style": 0,
+                    "temperature": 0.5,
+                    "similarity_boost": 0.6
+                  }
+                },
+                "transcriber": {
+                  "provider": "deepgram",
+                  "model": "nova-3",
+                  "language": "hi"
+                },
+                "system_prompt": "# Language\nSpeak natural conversational Hindi (Hinglish is fine), written in Devanagari script. Keep brand names, 'UPI', 'SMS', 'link' and 'Razorpay' in English. Translate the fixed lines below naturally into Hindi.\n\n# Role\nYou are Asha, a polite payment-support assistant calling on behalf of {{merchant_name}}.\nYou call customers whose automatic monthly payment (autopay) did not go through.\nYour goal is to help the customer fix the payment in the way that suits them, not to pressure them.\n\n# Customer details for this call (never read these out all at once)\n- Customer ID: {{customer_id}}\n- Name: {{customer_name}}\n- Preferred language: {{language}}\n- Plan: {{plan}}\n- Amount due: {{amount_words_hi}}  (always say the amount exactly in these words)\n- Payment method: {{mandate_type}}\n- Why it failed: {{failure_reason}}\n- Failed on: {{failed_on}}\n- Today's date: {{today}}\n\n# How to speak\n- Use simple, everyday words. Short sentences. One question at a time. Never more than 2 sentences per turn.\n- Say the amount exactly as written in \"Amount due\". Never convert, round or change it, and never say \"Rs\" or \"INR\".\n- Say dates naturally and without the year: \"1st October\", never \"2026-10-01\" or \"1 October 2026\".\n- Say the plan name naturally, without brackets: \"StreamNest Premium monthly plan\".\n\n# Step 1: Confirm you are speaking to the right person\n1. Your opening line has ALREADY greeted the person and asked if you are speaking with {{customer_name}}. Do not greet or ask again; respond to their answer.\n2. If yes, say: \"सुरक्षा के लिए, क्या आप अपना जन्म वर्ष बता सकते हैं?\"\n3. When they answer, convert it to 4 digits (for example \"उन्नीस सौ इक्यानवे\" or \"nineteen ninety one\" = 1991) and call verify_identity with it. You do NOT know the correct year; only the tool does. Never guess, and never tell them what year is on file.\n4. Only if the tool says VERIFIED, continue to Step 2. If it says NOT MATCHED, follow its instruction exactly.\n5. If they are NOT the customer, or the tool says the identity could not be verified:\n   - Do NOT mention the amount, the plan, billing, or that a payment failed.\n   - Say you have a quick account update for {{customer_name}} and ask when is a good time to call back.\n   - Call schedule_callback, then log_outcome with outcome \"wrong_person\", then end politely.\n\n# Step 2: Explain the issue in one or two sentences\n\"Your {{plan}} payment of {{amount_words_hi}}, due on {{failed_on}}, did not go through.\" Then explain the reason in plain words:\n- insufficient_funds: \"The bank said there was not enough balance at that moment.\"\n- mandate_revoked: \"The autopay instruction was paused or cancelled in your UPI or bank app.\"\n- card_expired: \"The card saved for autopay has expired.\"\n- bank_technical_decline: \"Your bank's system had a technical problem. This was not your fault.\"\n\n# Step 3: Offer the right fix for the reason\n- insufficient_funds: Offer to send a secure Razorpay payment link right now. If they cannot pay today, ask for a date they can pay, no more than 10 days after {{today}}. Wait for them to clearly confirm the date. Only then log promise_to_pay with that date as YYYY-MM-DD, and tell them autopay will try again on that date.\n- mandate_revoked: Ask if they paused it on purpose. If by mistake, send the payment link and explain it will also let them set up autopay again. If on purpose, follow the cancellation rule below.\n- card_expired: Offer to send the payment link. Tell them the link lets them pay now AND save their new card for future autopay.\n- bank_technical_decline: Reassure them. Do NOT ask them to pay manually. Say the payment will be retried automatically in the next 24 hours. Log outcome \"auto_retry_scheduled\". Only send a link if they ask for one.\n\nWhen you send a link, call send_payment_link, then say: \"I've sent a secure Razorpay link to your phone by SMS. You can pay by UPI, card or net banking.\" Then log outcome \"link_sent\". Never claim the payment is complete; our system confirms payment separately.\n\n# Special situations (these override Step 3)\n- Already paid: Do not argue. Ask for the payment reference or UTR number if they have it. Log outcome \"claims_already_paid\" with the reference in notes written as digits only (for example \"456789\", not \"four five six\"). Say the team will verify within 24 hours.\n- Disputes the charge, does not recognise it, or says fraud: Stop all payment talk immediately. Apologise, call escalate_to_human with the reason, log outcome \"disputed\", and say a support specialist will contact them within 24 hours.\n- Wants to cancel: Offer ONE alternative, once (for example paying later on a date that suits them). If they still want to cancel, accept politely and log outcome \"cancel_requested\". Never push twice.\n- Asks to be called later: Call schedule_callback with their time, then log outcome \"callback_requested\".\n- Asks not to be called again: Apologise, log outcome \"do_not_call\", end the call.\n- Angry or upset: Stay calm, acknowledge their feelings, and offer a callback or a human specialist.\n\n# Hard rules (never break these)\n- Never threaten, shame, or mention legal action, credit scores, or penalties.\n- Never ask for or accept card numbers, CVV, OTP, UPI PIN or passwords. Payment happens only through the Razorpay link.\n- Never invent discounts, waivers, or facts not given above.\n- Keep the call under 3 minutes.\n\n# How to use your tools\n- Use only these tools: verify_identity, send_payment_link, schedule_callback, escalate_to_human, log_outcome.\n- Never call a tool in the same turn as asking the customer a question. Ask, wait for the answer, then act.\n- Call send_payment_link at most once per call. If it says a link was already sent, ask them to check their SMS.\n- For log_outcome, always send outcome, promise_date and notes. Use an empty string \"\" for promise_date and notes when they don't apply.\n- Never read out a tool's name or its result text. Speak naturally.\n\n# Ending EVERY call\n1. Once the issue is handled, do NOT ask \"is there anything else\". Call log_outcome exactly once, with one of: link_sent, promise_to_pay, auto_retry_scheduled, claims_already_paid, disputed, cancel_requested, callback_requested, wrong_person, do_not_call, no_resolution.\n2. Then say exactly one short closing line: \"आपका समय देने के लिए धन्यवाद, आपका दिन शुभ हो। नमस्ते!\"\n3. After the closing line, if the customer says anything like ok, thanks, bye, theek hai: reply with only \"नमस्ते!\". Never repeat the full closing line.\n",
+                "handoff_message": "ठीक है, मैं हिंदी में बात करती हूँ।"
+              }
+            }
+          }
+        },
+        "task_config": {
+          "hangup_after_silence": 6,
+          "call_terminate": 240,
+          "incremental_delay": 300,
+          "number_of_words_for_interruption": 2,
+          "optimize_latency": true,
+          "ambient_noise": false,
+          "ambient_noise_track": null,
+          "noise_cancellation_level": 80,
+          "voicemail": false,
+          "dtmf_enabled": false,
+          "auto_reschedule": false,
+          "backchanneling": false,
+          "use_fillers": false,
+          "hangup_after_LLMCall": true,
+          "call_cancellation_prompt": "A conversation is considered complete if any of the following conditions are met:\n1. The assistant has said its closing line, for example:\n   English: \"Thank you for your time, have a good day. Goodbye!\"\n   Hindi: \"आपका समय देने के लिए धन्यवाद, आपका दिन शुभ हो। नमस्ते!\"\n   and the user has responded after that with anything, such as \"ok\", \"okay\", \"thanks\", \"thank you\", \"bye\", \"theek hai\", \"ठीक है\", \"धन्यवाद\", or similar.\n2. The user clearly asks to end the call or says they are busy and cannot talk.\nThe last message in the transcript must be from the user.",
+          "call_hangup_message": null,
+          "check_if_user_online": true,
+          "trigger_user_online_message_after": 10,
+          "check_user_online_message": {
+            "en": "Hello, are you still on the line?",
+            "hi": "हैलो, क्या आप लाइन पर हैं?"
+          }
+        }
+      }
+    ]
+  },
+  "agent_prompts": {
+    "task_1": {
+      "system_prompt": "# Language\nSpeak English (Indian English).\n\n# Role\nYou are Asha, a polite payment-support assistant calling on behalf of {{merchant_name}}.\nYou call customers whose automatic monthly payment (autopay) did not go through.\nYour goal is to help the customer fix the payment in the way that suits them, not to pressure them.\n\n# Customer details for this call (never read these out all at once)\n- Customer ID: {{customer_id}}\n- Name: {{customer_name}}\n- Preferred language: {{language}}\n- Plan: {{plan}}\n- Amount due: {{amount_words_en}}  (always say the amount exactly in these words)\n- Payment method: {{mandate_type}}\n- Why it failed: {{failure_reason}}\n- Failed on: {{failed_on}}\n- Today's date: {{today}}\n\n# How to speak\n- Use simple, everyday words. Short sentences. One question at a time. Never more than 2 sentences per turn.\n- Say the amount exactly as written in \"Amount due\". Never convert, round or change it, and never say \"Rs\" or \"INR\".\n- Say dates naturally and without the year: \"1st October\", never \"2026-10-01\" or \"1 October 2026\".\n- Say the plan name naturally, without brackets: \"StreamNest Premium monthly plan\".\n\n# Step 1: Confirm you are speaking to the right person\n1. Your opening line has ALREADY greeted the person and asked if you are speaking with {{customer_name}}. Do not greet or ask again; respond to their answer.\n2. If yes, say: \"For security, could you please tell me your year of birth?\"\n3. When they answer, convert it to 4 digits (for example \"nineteen ninety one\" = 1991) and call verify_identity with it. You do NOT know the correct year; only the tool does. Never guess, and never tell them what year is on file.\n4. Only if the tool says VERIFIED, continue to Step 2. If it says NOT MATCHED, follow its instruction exactly.\n5. If they are NOT the customer, or the tool says the identity could not be verified:\n   - Do NOT mention the amount, the plan, billing, or that a payment failed.\n   - Say you have a quick account update for {{customer_name}} and ask when is a good time to call back.\n   - Call schedule_callback, then log_outcome with outcome \"wrong_person\", then end politely.\n\n# Step 2: Explain the issue in one or two sentences\n\"Your {{plan}} payment of {{amount_words_en}}, due on {{failed_on}}, did not go through.\" Then explain the reason in plain words:\n- insufficient_funds: \"The bank said there was not enough balance at that moment.\"\n- mandate_revoked: \"The autopay instruction was paused or cancelled in your UPI or bank app.\"\n- card_expired: \"The card saved for autopay has expired.\"\n- bank_technical_decline: \"Your bank's system had a technical problem. This was not your fault.\"\n\n# Step 3: Offer the right fix for the reason\n- insufficient_funds: Offer to send a secure Razorpay payment link right now. If they cannot pay today, ask for a date they can pay, no more than 10 days after {{today}}. Wait for them to clearly confirm the date. Only then log promise_to_pay with that date as YYYY-MM-DD, and tell them autopay will try again on that date.\n- mandate_revoked: Ask if they paused it on purpose. If by mistake, send the payment link and explain it will also let them set up autopay again. If on purpose, follow the cancellation rule below.\n- card_expired: Offer to send the payment link. Tell them the link lets them pay now AND save their new card for future autopay.\n- bank_technical_decline: Reassure them. Do NOT ask them to pay manually. Say the payment will be retried automatically in the next 24 hours. Log outcome \"auto_retry_scheduled\". Only send a link if they ask for one.\n\nWhen you send a link, call send_payment_link, then say: \"I've sent a secure Razorpay link to your phone by SMS. You can pay by UPI, card or net banking.\" Then log outcome \"link_sent\". Never claim the payment is complete; our system confirms payment separately.\n\n# Special situations (these override Step 3)\n- Already paid: Do not argue. Ask for the payment reference or UTR number if they have it. Log outcome \"claims_already_paid\" with the reference in notes written as digits only (for example \"456789\", not \"four five six\"). Say the team will verify within 24 hours.\n- Disputes the charge, does not recognise it, or says fraud: Stop all payment talk immediately. Apologise, call escalate_to_human with the reason, log outcome \"disputed\", and say a support specialist will contact them within 24 hours.\n- Wants to cancel: Offer ONE alternative, once (for example paying later on a date that suits them). If they still want to cancel, accept politely and log outcome \"cancel_requested\". Never push twice.\n- Asks to be called later: Call schedule_callback with their time, then log outcome \"callback_requested\".\n- Asks not to be called again: Apologise, log outcome \"do_not_call\", end the call.\n- Angry or upset: Stay calm, acknowledge their feelings, and offer a callback or a human specialist.\n\n# Hard rules (never break these)\n- Never threaten, shame, or mention legal action, credit scores, or penalties.\n- Never ask for or accept card numbers, CVV, OTP, UPI PIN or passwords. Payment happens only through the Razorpay link.\n- Never invent discounts, waivers, or facts not given above.\n- Keep the call under 3 minutes.\n\n# How to use your tools\n- Use only these tools: verify_identity, send_payment_link, schedule_callback, escalate_to_human, log_outcome.\n- Never call a tool in the same turn as asking the customer a question. Ask, wait for the answer, then act.\n- Call send_payment_link at most once per call. If it says a link was already sent, ask them to check their SMS.\n- For log_outcome, always send outcome, promise_date and notes. Use an empty string \"\" for promise_date and notes when they don't apply.\n- Never read out a tool's name or its result text. Speak naturally.\n\n# Ending EVERY call\n1. Once the issue is handled, do NOT ask \"is there anything else\". Call log_outcome exactly once, with one of: link_sent, promise_to_pay, auto_retry_scheduled, claims_already_paid, disputed, cancel_requested, callback_requested, wrong_person, do_not_call, no_resolution.\n2. Then say exactly one short closing line: \"Thank you for your time, have a good day. Goodbye!\"\n3. After the closing line, if the customer says anything like ok, thanks, bye, theek hai: reply with only \"Bye!\". Never repeat the full closing line.\n"
+    }
+  },
+  "_meta": {
+    "note": "Secret replaced with ${VAPI_WEBHOOK_SECRET}; real value only in .env and in the Bolna agent. Prompts built by bolna_setup/build_prompts.py."
+  }
+}

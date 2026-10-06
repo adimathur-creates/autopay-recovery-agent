@@ -1,0 +1,206 @@
+[
+  {
+    "customer_id": "CUST001",
+    "name": "Rohan Mehta",
+    "birth_year": "1994",
+    "language": "English",
+    "phone": "+910000000001",
+    "email": "rohan.mehta@example.com",
+    "merchant_name": "StreamNest",
+    "plan": "StreamNest Premium (monthly)",
+    "amount_inr": 499,
+    "mandate_type": "UPI AutoPay",
+    "failure_reason": "insufficient_funds",
+    "failed_on": "2026-10-01",
+    "attempts_so_far": 0,
+    "do_not_call": false,
+    "test_scenario": "Happy path: low balance, will pay now by payment link",
+    "expected_outcomes": [
+      "paid_via_link",
+      "link_sent"
+    ]
+  },
+  {
+    "customer_id": "CUST002",
+    "name": "Priya Sharma",
+    "birth_year": "1991",
+    "language": "Hindi",
+    "phone": "+910000000002",
+    "email": "priya.sharma@example.com",
+    "merchant_name": "FitPulse",
+    "plan": "FitPulse Gold membership (monthly)",
+    "amount_inr": 1499,
+    "mandate_type": "UPI AutoPay",
+    "failure_reason": "insufficient_funds",
+    "failed_on": "2026-10-01",
+    "attempts_so_far": 1,
+    "do_not_call": false,
+    "test_scenario": "Prefers Hindi. Salary comes on the 7th, gives a promise-to-pay date",
+    "expected_outcomes": [
+      "promise_to_pay"
+    ]
+  },
+  {
+    "customer_id": "CUST003",
+    "name": "Arjun Nair",
+    "birth_year": "1988",
+    "language": "English",
+    "phone": "+910000000003",
+    "email": "arjun.nair@example.com",
+    "merchant_name": "LedgerLite",
+    "plan": "LedgerLite Business (monthly)",
+    "amount_inr": 2999,
+    "mandate_type": "UPI AutoPay",
+    "failure_reason": "mandate_revoked",
+    "failed_on": "2026-09-30",
+    "attempts_so_far": 0,
+    "do_not_call": false,
+    "test_scenario": "Paused the mandate in his UPI app by mistake. Needs link to pay and set up autopay again",
+    "expected_outcomes": [
+      "paid_via_link",
+      "link_sent"
+    ]
+  },
+  {
+    "customer_id": "CUST004",
+    "name": "Sneha Iyer",
+    "birth_year": "1996",
+    "language": "English",
+    "phone": "+910000000004",
+    "email": "sneha.iyer@example.com",
+    "merchant_name": "StreamNest",
+    "plan": "StreamNest Family (monthly)",
+    "amount_inr": 799,
+    "mandate_type": "Card mandate",
+    "failure_reason": "card_expired",
+    "failed_on": "2026-10-02",
+    "attempts_so_far": 0,
+    "do_not_call": false,
+    "test_scenario": "Card on file expired. Pays by link and updates card",
+    "expected_outcomes": [
+      "paid_via_link",
+      "link_sent"
+    ]
+  },
+  {
+    "customer_id": "CUST005",
+    "name": "Vikram Singh",
+    "birth_year": "1985",
+    "language": "Hindi",
+    "phone": "+910000000005",
+    "email": "vikram.singh@example.com",
+    "merchant_name": "FitPulse",
+    "plan": "FitPulse Platinum membership (monthly)",
+    "amount_inr": 2499,
+    "mandate_type": "eNACH",
+    "failure_reason": "bank_technical_decline",
+    "failed_on": "2026-10-01",
+    "attempts_so_far": 0,
+    "do_not_call": false,
+    "test_scenario": "Bank server issue, not his fault. Agent reassures and schedules an automatic retry, no payment ask",
+    "expected_outcomes": [
+      "auto_retry_scheduled"
+    ]
+  },
+  {
+    "customer_id": "CUST006",
+    "name": "Ananya Reddy",
+    "birth_year": "1993",
+    "language": "English",
+    "phone": "+910000000006",
+    "email": "ananya.reddy@example.com",
+    "merchant_name": "LedgerLite",
+    "plan": "LedgerLite Starter (monthly)",
+    "amount_inr": 999,
+    "mandate_type": "UPI AutoPay",
+    "failure_reason": "insufficient_funds",
+    "failed_on": "2026-09-29",
+    "attempts_so_far": 2,
+    "do_not_call": false,
+    "test_scenario": "Says she already paid manually yesterday. Agent asks for UTR / reference and logs it for verification",
+    "expected_outcomes": [
+      "claims_already_paid"
+    ]
+  },
+  {
+    "customer_id": "CUST007",
+    "name": "Karan Malhotra",
+    "birth_year": "1990",
+    "language": "English",
+    "phone": "+910000000007",
+    "email": "karan.malhotra@example.com",
+    "merchant_name": "StreamNest",
+    "plan": "StreamNest Premium (monthly)",
+    "amount_inr": 499,
+    "mandate_type": "UPI AutoPay",
+    "failure_reason": "mandate_revoked",
+    "failed_on": "2026-10-01",
+    "attempts_so_far": 0,
+    "do_not_call": false,
+    "test_scenario": "Revoked on purpose, wants to cancel. Agent offers one alternative, then accepts and logs cancellation",
+    "expected_outcomes": [
+      "cancel_requested"
+    ]
+  },
+  {
+    "customer_id": "CUST008",
+    "name": "Meera Joshi",
+    "birth_year": "1987",
+    "language": "Hindi",
+    "phone": "+910000000008",
+    "email": "meera.joshi@example.com",
+    "merchant_name": "FitPulse",
+    "plan": "FitPulse Gold membership (monthly)",
+    "amount_inr": 1499,
+    "mandate_type": "UPI AutoPay",
+    "failure_reason": "insufficient_funds",
+    "failed_on": "2026-10-01",
+    "attempts_so_far": 0,
+    "do_not_call": false,
+    "test_scenario": "Disputes the charge, says she never signed up. Agent stops collecting and escalates to a human",
+    "expected_outcomes": [
+      "disputed"
+    ]
+  },
+  {
+    "customer_id": "CUST009",
+    "name": "Rahul Verma",
+    "birth_year": "1992",
+    "language": "English",
+    "phone": "+910000000009",
+    "email": "rahul.verma@example.com",
+    "merchant_name": "LedgerLite",
+    "plan": "LedgerLite Business (monthly)",
+    "amount_inr": 2999,
+    "mandate_type": "Card mandate",
+    "failure_reason": "card_expired",
+    "failed_on": "2026-09-30",
+    "attempts_so_far": 0,
+    "do_not_call": false,
+    "test_scenario": "Wrong person answers (his father). Agent shares no payment details and books a callback",
+    "expected_outcomes": [
+      "wrong_person",
+      "callback_requested"
+    ]
+  },
+  {
+    "customer_id": "CUST010",
+    "name": "Divya Kapoor",
+    "birth_year": "1995",
+    "language": "English",
+    "phone": "+910000000010",
+    "email": "divya.kapoor@example.com",
+    "merchant_name": "StreamNest",
+    "plan": "StreamNest Premium (monthly)",
+    "amount_inr": 499,
+    "mandate_type": "UPI AutoPay",
+    "failure_reason": "insufficient_funds",
+    "failed_on": "2026-10-02",
+    "attempts_so_far": 0,
+    "do_not_call": true,
+    "test_scenario": "On the do-not-call list. The calling script must skip her. Proves the guardrail works",
+    "expected_outcomes": [
+      "skipped_do_not_call"
+    ]
+  }
+]
