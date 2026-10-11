@@ -4,7 +4,6 @@ Asha calls a subscription customer whose autopay failed, confirms who she is tal
 
 Built for the Razorpay Forward-Deployed Engineer (Agent Studio) assignment, option 2.
 
-> **Demo video:** _link added shortly_
 > Shows two live calls to my own phone (a payment link sent and paid; a wrong person answering) and the dashboard updating.
 
 ---
