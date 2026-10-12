@@ -4,7 +4,14 @@ Asha calls a subscription customer whose autopay failed, confirms who she is tal
 
 Built for the Razorpay Forward-Deployed Engineer (Agent Studio) assignment, option 2.
 
-> Shows two live calls to my own phone (a payment link sent and paid; a wrong person answering) and the dashboard updating.
+> ## ▶️ [Watch the demo (Loom)](https://www.loom.com/share/9daa753a129e44f1adc8fd7b3d055fc7)
+>
+> Three live calls to my own phone:
+> 1. **English, low balance:** payment link sent mid-call, paid, and "Recovered ₹499" confirmed by Razorpay's API.
+> 2. **Hindi, bank technical error:** a wrong birth year is rejected with nothing revealed; after verification the agent explains it was the bank's fault and **refuses to ask for payment**, even when asked directly.
+> 3. **Hindi, disputed charge:** the agent drops all payment talk and escalates to a human.
+>
+> Plus the identity audit log, the server-side guardrail code, evaluation results, and how I'd run a pilot with a merchant.
 
 ---
 
@@ -74,7 +81,7 @@ Each fictional customer has an **expected outcome** (`data/customers.json`). The
 
 | # | Scenario | Language | Expected | Result |
 |---|---|---|---|---|
-| CUST001 | Low balance → pays now | English | link sent | ✅ (tested on an earlier agent version; re-run in the demo video) |
+| CUST001 | Low balance → pays now | English | link sent | ✅ (re-run on the final version in the demo video, paid via the link) |
 | CUST002 | Low balance, salary on the 7th; **wrong birth year given first** | Hindi | promise to pay | ✅ wrong year rejected, nothing revealed, verified on retry |
 | CUST003 | Paused autopay by mistake | English | link sent | ✅ |
 | CUST004 | Card expired | English | link sent | ✅ |
